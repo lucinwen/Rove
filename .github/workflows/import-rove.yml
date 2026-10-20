@@ -47,6 +47,7 @@ jobs:
           git merge --no-ff --allow-unrelated-histories a6225c2ee82f6d9e8a60e565748c50b4ffab13f4 -m 'chore: import Rove source history and copresence prototype'
           git merge-base --is-ancestor d0b026570fdaefb73a339d27bf2455073fb93c5a HEAD
           git merge-base --is-ancestor a6225c2ee82f6d9e8a60e565748c50b4ffab13f4 HEAD
+          git diff --quiet "$GITHUB_SHA" HEAD -- .github/workflows
           git diff --quiet a6225c2ee82f6d9e8a60e565748c50b4ffab13f4 HEAD -- . ':!.github/workflows/import-rove.yml' ':!.github/import/rove-implementation.bundle.b64'
           git push origin HEAD:refs/heads/main
           git push --force-with-lease="refs/heads/migration/rove-import:$GITHUB_SHA" origin :refs/heads/migration/rove-import
