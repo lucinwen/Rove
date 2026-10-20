@@ -1,0 +1,32 @@
+{
+  "name": "rove-copresence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rove 如晤：双人空间共在技术原型",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "tsx server/index.ts",
+    "start": "tsx server/index.ts --production",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "three": "^0.180.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/three": "^0.180.0",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.3",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}
