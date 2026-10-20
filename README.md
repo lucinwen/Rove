@@ -10,7 +10,7 @@
 
 本项目从 [Angelina-G/rove-site](https://github.com/Angelina-G/rove-site) 的提交 `d0b026570fdaefb73a339d27bf2455073fb93c5a` 开始开发，保留原 Git 历史和全部 64 个原始文件：4 个 HTML、59 个 PDF、1 张 PNG。PDF 文件数不等于独立论文数。
 
-用户指定的上传目标是 [venividici/Rove](https://github.com/venividici/Rove)，这是独立开发仓库；本项目保留上述来源关系，不要求创建 GitHub Fork。当前正在上传本地克隆与已开发代码并核验远端内容，尚未确认上传完成或 GitHub Actions 通过；最终交付状态见 [验证记录](docs/VALIDATION.md#github-交付状态)。
+开发仓库为 [venividici/Rove](https://github.com/venividici/Rove)，以独立仓库维护，并保留原研究资料、作者提交和本次开发历史。完整交付记录见 [验证记录](docs/VALIDATION.md#github-交付状态)，自动检查结果见 [GitHub Actions](https://github.com/venividici/Rove/actions/workflows/check.yml)。
 
 原有根目录 `index.html` 仍是研究资料入口，运行应用后的资料入口为 `/research/`。新应用源码在 `web/`，服务端在 `server/`。本次没有把研究示意图或原报告的估计延迟当作已完成的产品或实测成绩。
 
@@ -19,6 +19,8 @@
 需要 Node.js **22.12 或更高版本**，推荐使用已维护的 Node.js 22/24 环境。
 
 ```bash
+git clone https://github.com/venividici/Rove.git
+cd Rove
 npm ci
 npm run dev
 ```

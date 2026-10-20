@@ -87,11 +87,19 @@ npm run check
 | WebXR | 只有能力适配代码；没有实体头显或真实房间测试 |
 | 手柄和触觉腕带 | 没有实体硬件测量；腕带驱动未实现 |
 | Docker | 提供配置，但本次未构建容器 |
-| GitHub Actions | 已提供检查配置；远端运行状态待上传后核验，本记录尚未确认 Actions 通过 |
 | 真实性能与用户效果 | 没有动作到画面、端到端触觉延迟、临场感或眩晕结论 |
 
 ## GitHub 交付状态
 
-本地开发已基于原始历史保存在 `feat/copresence-mvp`。用户已指定自己的独立目标仓库 [venividici/Rove](https://github.com/venividici/Rove)，要求直接上传本地克隆和已开发代码，不创建 Fork。原始资料与历史的来源仍是 [Angelina-G/rove-site](https://github.com/Angelina-G/rove-site)。
+完整上游历史和 v0.1 开发代码已导入独立仓库 [venividici/Rove](https://github.com/venividici/Rove) 的 `main` 分支。原始资料的来源为 [Angelina-G/rove-site](https://github.com/Angelina-G/rove-site)。
 
-本记录更新时，上传与远端内容核验正在进行。尚未确认目标仓库已完整收到代码，也未确认 GitHub Actions 通过。上传完成后，需要以目标仓库的实际分支、提交、文件与工作流结果更新最终状态；本地提交和本地测试通过不能替代这些远端证据。
+- 导入合并提交：[7f3c4d47ee2bea102fe3eeb7f58b9b0d2fcad8ac](https://github.com/venividici/Rove/commit/7f3c4d47ee2bea102fe3eeb7f58b9b0d2fcad8ac)。
+- 原始提交 `d0b026570fdaefb73a339d27bf2455073fb93c5a`、开发提交 `2228db5fa69b3ce46e43352df32423da19a94567` 及文档提交 `a6225c2ee82f6d9e8a60e565748c50b4ffab13f4` 均保持原 SHA，并已核验为目标主分支的祖先。
+- 已从目标仓库重新执行 `git fetch`，核验原始 64 个文件的 Git 对象与源仓库完全一致；应用、测试、配置和开发文档与本地导入版本一致。
+- 一次性迁移流程已成功完成：[运行记录](https://github.com/venividici/Rove/actions/runs/39395680140)。临时迁移工作流和传输文件已从当前文件树清理，正常自动检查工作流继续保留。
+
+## GitHub 自动检查
+
+仓库启用 [Rove checks](https://github.com/venividici/Rove/actions/workflows/check.yml)，每次推送和 Pull Request 自动执行依赖安装、类型检查、24 项测试与生产构建。自动检查使用 Node.js 22，运行 `npm ci --ignore-scripts` 和 `npm run check`。
+
+上面的验证表记录本地实际执行结果；远端每次提交的状态和完整日志以对应的 [GitHub Actions 运行记录](https://github.com/venividici/Rove/actions) 为准。CI 不替代本记录中列明的浏览器、跨网络和实体设备实测。
