@@ -129,3 +129,9 @@ npm run check
 原根目录 `index.html` 仍是研究资料入口，运行应用后通过 `/research/` 阅读。新代码位于 `web/`、`server/`、`shared/` 等目录。原资料关于延迟、硬件和研究空白的描述不作为本实现的测量结果。
 
 原仓库未提供覆盖全部内容的统一 LICENSE；原论文、图像和第三方依赖保留其各自权利与许可，本 README 不为原资料另行授权。
+
+## G1：真实 XR 共处实验计划（与浏览器原型分开）
+
+已新增 [研究与实验进度](docs/research/README.md)、[20 分钟体验协议](docs/research/EXPERIENCE_PROTOCOL.md) 及 [UE 工作站执行手册](docs/research/UE_WORKSTATION.md)。离线检查器位于 [`experiments/copresence-v1/`](experiments/copresence-v1/)。**代码检查不等于实际 UE 编译、头显输入或手部压力测试。**
+
+此前本地 `bcd6609` 临时交付包未能在本次环境恢复；上述内容是重新建立并经独立 CI 校验的 G1 检查点，而非该旧提交的原样推送。
