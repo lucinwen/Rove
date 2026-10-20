@@ -1,4 +1,6 @@
-import type { Signal } from '../../shared/protocol.ts';
+import type { Pose, Signal } from '../../shared/protocol.ts';
+import { ScreenShare } from './screen-share.ts';
+import { SpatialAudio } from './spatial-audio.ts';
 
 type PeerSession = {
   pc: RTCPeerConnection;
@@ -18,7 +20,12 @@ type PeerSession = {
  */
 export class MediaLink {
   onPermissionDenied?: (message: string) => void;
+  onScreenEnded?: () => void;
+  onScreenStatus?: (message: string) => void;
+  onSpatialAudioStatus?: (message: string) => void;
 
+  private screen: ScreenShare;
+  private spatial: SpatialAudio;
   private session: PeerSession | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
@@ -43,6 +50,10 @@ export class MediaLink {
     remoteVideo.muted = false;
     remoteVideo.autoplay = true;
     remoteVideo.playsInline = true;
+    this.screen = new ScreenShare(sendSignal);
+    this.screen.onEnded = () => this.onScreenEnded?.();
+    this.screen.onStatus = message => this.onScreenStatus?.(message);
+    this.spatial = new SpatialAudio(remoteVideo, message => this.onSpatialAudioStatus?.(message));
   }
 
   configure(selfId: string, peerId: string | null, role: 'host' | 'guest', iceServers: RTCIceServer[]): void {
@@ -51,6 +62,7 @@ export class MediaLink {
     if (changedPeer) this.closeConnection();
     this.selfId = selfId;
     this.peerId = peerId;
+    this.screen.configure(selfId, peerId, iceServers);
     this.hasTurn = iceServers.some(server =>
       (Array.isArray(server.urls) ? server.urls : [server.urls]).some(url => /^turns?:/i.test(url)),
     );
@@ -113,10 +125,12 @@ export class MediaLink {
         const stream = this.remoteStream;
         if (!stream.getTracks().some(existing => existing.id === track.id)) stream.addTrack(track);
         this.remoteVideo.srcObject = stream;
+        this.spatial.setStream(stream);
         const play = () => { if (this.isCurrent(session)) this.playRemote(session); };
         track.onunmute = play;
         track.onended = () => {
           stream.removeTrack(track);
+          if (this.isCurrent(session)) this.spatial.setStream(stream);
           if (this.isCurrent(session) && stream.getTracks().length === 0) this.remoteVideo.srcObject = null;
         };
         play();
@@ -150,6 +164,7 @@ export class MediaLink {
 
   /** Incoming room signalling is serialised independently of device permission prompts. */
   receiveSignal(signal: Signal): Promise<void> {
+    if (signal.channel === 'screen') return this.screen.receiveSignal(signal);
     const session = this.session;
     if (!session || !this.isCurrent(session)) return Promise.resolve();
     this.signalQueue = this.signalQueue.then(async () => {
@@ -288,9 +303,41 @@ export class MediaLink {
     if (!this.disposed) this.report('本地麦克风和摄像头已关闭；仍可接收对方媒体');
   }
 
+  setScreenVideos(local: HTMLVideoElement, remote: HTMLVideoElement): void {
+    this.screen.setVideos(local, remote);
+  }
+
+  /** Apply every authoritative room presentation state before publishing/signalling. */
+  setPresentation(ownerId: string | null, revision: number): void {
+    this.screen.setPresentation(ownerId, revision);
+  }
+
+  prepareScreen(): Promise<boolean> { return this.screen.prepare(); }
+  publishScreen(): void { this.screen.publish(); }
+  stopScreen(): void { this.screen.stop(); }
+  resetScreen(): void { this.screen.reset(); }
+
+  getScreenStats(): Promise<{ connection: string; outboundVideoBytes: number; inboundVideoBytes: number }> {
+    return this.screen.getStats();
+  }
+
+  setSpatialAudioEnabled(enabled: boolean): Promise<boolean> {
+    if (enabled && (!this.session || !this.peerId || this.disposed)) {
+      this.onSpatialAudioStatus?.('请先与另一方进入同一房间，再启用空间声音');
+      return Promise.resolve(false);
+    }
+    return this.spatial.setEnabled(enabled);
+  }
+
+  updateSpatialPose(localHead: Pose, remoteHead: Pose | null): void {
+    this.spatial.updatePose(localHead, remoteHead);
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.closeConnection();
+    this.screen.dispose();
+    this.spatial.dispose();
     this.disposed = true;
     this.selfId = '';
     this.peerId = null;
@@ -327,7 +374,7 @@ export class MediaLink {
 
   private send(signal: Signal, session: PeerSession): void {
     if (!this.isCurrent(session)) return;
-    try { this.sendSignal(signal); }
+    try { this.sendSignal({ ...signal, channel: 'camera' }); }
     catch { this.report('信令连接已中断；请检查房间连接'); }
   }
 
@@ -381,6 +428,8 @@ export class MediaLink {
 
   private closeConnection(): void {
     this.captureVersion++;
+    this.screen.stop();
+    this.spatial.reset();
     this.stopLocalTracks();
     const session = this.session;
     this.session = null;

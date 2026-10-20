@@ -1,4 +1,5 @@
 import { CLIP_DURATION, ROOM_BOUNDS, type ClientMessage, type Pose, type PoseFrame, type Signal } from './protocol.ts';
+import { MAX_SPACE_BOUNDS, validSpaceConfig, type SpaceBounds } from './space.ts';
 
 type Obj = Record<string, unknown>;
 const object = (x: unknown): x is Obj => x !== null && typeof x === 'object' && !Array.isArray(x);
@@ -9,28 +10,33 @@ const roomId = (x: unknown): x is string => typeof x === 'string' && /^[a-f0-9]{
 const eventId = (x: unknown): x is string => typeof x === 'string' && /^[a-f0-9-]{36}$/.test(x);
 const name = (x: unknown): x is string => text(x, 24) && x.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(x);
 
-function pose(value: unknown): value is Pose {
+function pose(value: unknown, bounds: SpaceBounds): value is Pose {
   if (!object(value) || !keys(value, ['position', 'orientation'])) return false;
   const p = value.position, q = value.orientation;
   if (!Array.isArray(p) || p.length !== 3 || !p.every(number)) return false;
   if (!Array.isArray(q) || q.length !== 4 || !q.every(number)) return false;
   const norm = Math.hypot(...q);
-  return Math.abs(p[0]) <= ROOM_BOUNDS.x && Math.abs(p[2]) <= ROOM_BOUNDS.z &&
-    p[1] >= ROOM_BOUNDS.minY && p[1] <= ROOM_BOUNDS.maxY && norm >= 0.9 && norm <= 1.1;
+  return Math.abs(p[0]) <= bounds.x && Math.abs(p[2]) <= bounds.z &&
+    p[1] >= bounds.minY && p[1] <= bounds.maxY && norm >= 0.9 && norm <= 1.1;
 }
 
-export function validPose(value: unknown): value is PoseFrame {
-  if (!object(value) || !keys(value, ['head', 'left', 'right', 'source', 'tracked', 'seq'])) return false;
-  if (!pose(value.head) || !pose(value.left) || !pose(value.right)) return false;
+export function validPose(value: unknown, bounds: SpaceBounds = ROOM_BOUNDS): value is PoseFrame {
+  if (!object(value) || !keys(value, ['head', 'left', 'right', 'source', 'tracked', 'seq', 'spaceRevision'])) return false;
+  if (!pose(value.head, bounds) || !pose(value.left, bounds) || !pose(value.right, bounds)) return false;
   if (!['desktop', 'webxr'].includes(value.source as string) || typeof value.tracked !== 'boolean') return false;
   if (!Number.isSafeInteger(value.seq) || (value.seq as number) < 0) return false;
+  if (value.spaceRevision !== undefined && (!Number.isSafeInteger(value.spaceRevision) || (value.spaceRevision as number) < 0)) return false;
   // Reject impossible hand displacement before the frame can influence contacts.
   const head = value.head;
   return [value.left, value.right].every(hand => Math.hypot(...hand.position.map((v, i) => v - head.position[i])) <= 1.65);
 }
 
 function signal(value: unknown): value is Signal {
-  if (!object(value) || !keys(value, ['description', 'candidate'])) return false;
+  if (!object(value) || !keys(value, ['description', 'candidate', 'channel', 'presentationRevision'])) return false;
+  if (value.channel !== undefined && value.channel !== 'camera' && value.channel !== 'screen') return false;
+  if (value.channel === 'screen') {
+    if (!Number.isSafeInteger(value.presentationRevision) || (value.presentationRevision as number) < 0) return false;
+  } else if (value.presentationRevision !== undefined) return false;
   if (Number(value.description !== undefined) + Number(value.candidate !== undefined) !== 1) return false;
   if (value.description !== undefined) {
     const d = value.description;
@@ -52,10 +58,14 @@ export function parseClientMessage(value: unknown): ClientMessage | null {
     case 'join': return keys(value, ['type', 'roomId', 'name']) && roomId(value.roomId) && name(value.name) ? value as ClientMessage : null;
     case 'leave': case 'stop': case 'resume': return keys(value, ['type']) ? value as ClientMessage : null;
     case 'consent': return keys(value, ['type', 'enabled']) && typeof value.enabled === 'boolean' ? value as ClientMessage : null;
-    case 'pose': return keys(value, ['type', 'pose']) && validPose(value.pose) ? value as ClientMessage : null;
+    case 'pose': return keys(value, ['type', 'pose']) && validPose(value.pose, MAX_SPACE_BOUNDS) ? value as ClientMessage : null;
     case 'touch-response': return keys(value, ['type', 'requestId', 'accepted']) && eventId(value.requestId) && typeof value.accepted === 'boolean' ? value as ClientMessage : null;
     case 'haptic-result': return keys(value, ['type', 'eventId', 'mode', 'ok']) && eventId(value.eventId) && ['visual', 'gamepad'].includes(value.mode as string) && typeof value.ok === 'boolean' ? value as ClientMessage : null;
     case 'signal': return keys(value, ['type', 'signal']) && signal(value.signal) ? value as ClientMessage : null;
+    case 'space-propose': return keys(value, ['type', 'space']) && validSpaceConfig(value.space) ? value as ClientMessage : null;
+    case 'space-response': return keys(value, ['type', 'proposalId', 'accepted']) && eventId(value.proposalId) && typeof value.accepted === 'boolean' ? value as ClientMessage : null;
+    case 'space-ready': return keys(value, ['type', 'revision']) && Number.isSafeInteger(value.revision) && (value.revision as number) >= 0 ? value as ClientMessage : null;
+    case 'presentation': return keys(value, ['type', 'active']) && typeof value.active === 'boolean' ? value as ClientMessage : null;
     case 'playback': return keys(value, ['type', 'action', 'position']) && ['play', 'pause', 'seek'].includes(value.action as string) && number(value.position) && value.position >= 0 && value.position <= CLIP_DURATION ? value as ClientMessage : null;
     case 'ping': return keys(value, ['type', 'sentAt']) && number(value.sentAt) && value.sentAt >= 0 && value.sentAt <= Number.MAX_SAFE_INTEGER ? value as ClientMessage : null;
     default: return null;

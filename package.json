@@ -1,6 +1,6 @@
 {
   "name": "rove-copresence",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Rove 如晤：双人空间共在技术原型",

@@ -1,105 +1,96 @@
-# 首版验证记录
+# Rove v0.2 验证记录
 
-日期：2026-10-20。分支：`feat/copresence-mvp`。
+日期：2026-10-20。版本：`0.2.0`；目标分支：独立仓库 `venividici/Rove` 的 `main`。
 
-本记录只报告本次实际执行的检查。原型不等于完整 AR/VR 产品，自动化通过不等于实体设备、真人体验或公网部署已经通过。
+本记录区分实际执行的软件检查、生产 HTTP 检查与尚未执行的浏览器/硬件验收。本版增加自带空间、主场切换、视频人物、屏幕共享、HRTF 与手动 XR 对齐，不把这些代码和测试结果写成实体设备已经通过。
 
-## 基线
+## 实际执行结果
 
-- 源仓库：`https://github.com/Angelina-G/rove-site`
-- 起点提交：`d0b026570fdaefb73a339d27bf2455073fb93c5a`
-- 原始 64 个文件及原 Git 历史已完整克隆。
-- 对原始 4 个 HTML、全部 `papers/` 文件及 PNG 执行 `git diff --exit-code`，没有内容变化。
-- 本次开发目录为新增 `server/`、`shared/`、`web/`、`tests/`、`docs/` 及配置文件。
-
-## 环境与命令
-
-Linux 开发环境；Node.js `v24.19.0`；npm `11.9.0`；TypeScript `5.9.3`；Vite `7.3.7`。依赖精确版本由 `package-lock.json` 固定。
+环境：Linux；Node.js `v24.19.0`；npm `11.9.0`；TypeScript `5.9.3`；Vite `7.3.7`。依赖精确版本由 `package-lock.json` 固定，本轮没有新增运行依赖。
 
 ```bash
 npm run check
 ```
 
-实际结果：
-
-| 检查 | 结果 |
+| 检查 | 本轮结果 |
 |---|---|
-| `npm run typecheck` | 通过，退出码 0 |
-| `npm test` | 24 项通过，0 失败、0 跳过 |
-| `npm run build` | 通过，生成 `dist/` |
-| 原始资料差异检查 | 无改动 |
+| TypeScript `tsc --noEmit` | 通过，退出码 0 |
+| `tsx --test tests/*.test.ts` | **69 项通过，0 失败，0 跳过** |
+| Vite 生产构建 | 通过，生成 `dist/` |
+| 生产 HTTP 冒烟 | 首页、构建资产、配置、研究入口、样片 Range 与资产鉴权符合预期 |
 | `git diff --check` | 通过 |
+| 原始 64 文件 Git blob 核对 | 与源提交逐项一致 |
 
-构建输出包含约 609.8 kB 的主 JS（gzip 约 162.0 kB）和约 15.5 kB 的 CSS。Vite 提示主 JS 大于 500 kB；这是目前打包 Three.js 的性能优化项，不是构建失败。尚未测量低性能手机的帧率或首次加载时长。
+构建产物：主 JS 776,631 字节，gzip 约 209.98 kB；CSS 21,853 字节，gzip 约 5.63 kB；入口 HTML 951 字节。Vite 对超过 500 kB 的主包给出优化提示，构建成功。尚未测量实际浏览器下载、解析、GPU 帧率或低性能手机表现。
 
-## 24 项测试分别验证什么
+## 69 项测试的范围
 
-### 真实 HTTP/WebSocket 集成：12 项
+| 文件 | 数量 | 实际执行的层面 |
+|---|---:|---|
+| [server.test.ts](../tests/server.test.ts) | 12 | 真实 Node HTTP 和独立 WebSocket：邀请、人数、隔离、播放、位置、逐次触碰、退出、来源与静态资源 |
+| [server-spaces.test.ts](../tests/server-spaces.test.ts) | 11 | 真实 HTTP 模型上传/下载、同房间鉴权、GLB 限制、超限与中断、并发预算、提案、就位、主场离开、屏幕权限和版本 |
+| [client-lifecycle.test.ts](../tests/client-lifecycle.test.ts) | 13 | 实际 main.ts 的 DOM 事件与生命周期；渲染器、媒体、设备和 Socket 为明确替身 |
+| [space-panel.test.ts](../tests/space-panel.test.ts) | 9 | 实际 SpacePanel DOM/控制器；HTTP 与渲染器为边界替身 |
+| [media-lifecycle.test.ts](../tests/media-lifecycle.test.ts) | 8 | 实际媒体模块；浏览器设备、PeerConnection 和 Web Audio 为 API 替身 |
+| [haptics.test.ts](../tests/haptics.test.ts) | 6 | 视觉/手柄适配逻辑；使用模拟 Gamepad API |
+| [space-model.test.ts](../tests/space-model.test.ts) | 4 | 真实 Three.js GLTFLoader 解析内嵌几何与节点变换，资源释放和无外部请求的预检 |
+| [spatial-math.test.ts](../tests/spatial-math.test.ts) | 6 | 坐标、头手刚体映射、退化朝向、显式模型变换、尺寸边界和靠近落点的数值计算 |
+| **合计** | **69** | 不包含真实浏览器 E2E、WebGL/GPU 呈现、真人媒体或实体头显 |
 
-测试文件：[server.test.ts](../tests/server.test.ts)。启动真实 Node HTTP 服务与独立 WebSocket 客户端，没有用前端动画代替网络连接。
+### 这轮重点核验的行为
 
-1. 两个客户端加入同房，第三人被拒绝；预览不披露参与者身份。
-2. 不同房间隔离，未加入者不能发送媒体信令。
-3. 共享播放状态具有服务端时间、合法范围与单调 revision。
-4. 非法位置、四元数、旧序号和未知字段被拒绝。
-5. 双方先允许请求，接收者再逐次确认；输出回执不能由其他人冒认。
-6. 拒绝触碰不生成执行事件；双手分离取消请求。
-7. 接受时重新检查追踪新鲜度，请求过期不执行。
-8. 追踪失效、立即停止与恢复均不恢复旧权限；暂停时姿态与媒体信令不转发。
-9. 撤销、退出、重新加入和主场离开正确清除授权。
-10. 跨域 WebSocket 被拒绝，同源可以连接。
-11. 生产 HTTP 不暴露源码、环境文件、Git 元数据或路径穿越目标。
-12. 视频支持有界、开放结尾及后缀 Range 请求，用于跳转播放。
+- 上传 GLB 的字节在同房间成员下载后完全一致；其他房间和未入场者不能读取。
+- 静态 GLB 的结构、索引、数值、资源引用、图像规格与实例预算在加载前检查。没有把不受支持的资源当成已加载。
+- 分块上传超限返回有界拒绝；上传缓冲计入总预算，结束会话中止上传并释放暂存。
+- 仅对方能接受空间提案；拒绝或过期保留当前空间，不能伪造 owner/revision。
+- 接受新空间清除旧位置和触碰；加载成功不自动代替用户确认；双方当前 revision ready 后才传位置。
+- 参数或文件变更使旧预览失效；正在上传时改变比例不会发送旧配置；迟到模型/渲染结果不覆盖新房间或新失败状态。
+- 会话加入者可以成为空间提供者，摄像头协商角色仍保持创建者/加入者关系。
+- 屏幕捕获先本地准备，得到服务端当前版本授权后才发布；相机/麦克风与屏幕分别使用连接和流。
+- 本机停止、浏览器原生结束、换人、退出和迟到 grant/权限不会重开分享；旧 offer/ICE 不进入新共享连接。
+- 接收分享时关闭本机摄像头/麦克风，不关闭对方的屏幕接收连接。
+- HRTF 只在明确选择、音频图运行、音频轨与双方有效位置都存在时替换普通语音；本地追踪失效或恢复音频失败时保留普通声音。
+- 手动对齐使用真实位姿的数学映射，头部与双手一致，拒绝无法定义水平朝向的输入；这些是数值检查，没有测头显误差。
+- 原有逐次同意、撤销、暂停、断连、过期、限幅和停止逻辑继续通过。
 
-### 触觉适配器逻辑：6 项
+## 生产 HTTP 检查
 
-测试文件：[haptics.test.ts](../tests/haptics.test.ts)。使用模拟 Gamepad API，验证默认不访问设备、重复事件不重放、显式开启、输出限幅、失败如实回退、急停 reset、撤回和销毁后的异步失效。
+最终构建后启动真实生产模式服务，使用临时本地端口，检查完毕后关闭。以下是实际响应，不是浏览器渲染结果：
 
-**这些测试未驱动真实手柄或腕带。** `mode=gamepad` 的浏览器 API 完成回执也不等于身体实际感觉或传感器测量。
-
-### 真实主界面代码的 DOM 生命周期：6 项
-
-测试文件：[client-lifecycle.test.ts](../tests/client-lifecycle.test.ts)。esbuild 构建实际 `web/src/main.ts`，happy-dom 执行实际界面代码。空间渲染、媒体、触觉与 Socket 被明确替换为测试边界对象。
-
-1. 合法回应可进入输出；本机点击停止后，服务器回包之前的迟到回应与播放状态不能重新输出。
-2. 本机撤销触碰许可后，在途触碰和旧授权不能绕过撤回。
-3. 重复暂停状态保持媒体断开，明确恢复后重新建立配置，旧触碰权限保持关闭。
-4. 对端离开和重新入房清理旧状态；尚未结束的设备授权不会卡住下一场会话。
-5. 修改或拒绝邀请后，迟到预览不会重新弹出旧邀请。
-6. 服务不再回应 pong 时，即使 Socket 仍宣称 OPEN，也关闭会话与设备。
-
-**这不是浏览器 E2E，不验证 WebGL 画面、实际 WebRTC 音视频、摄像头、麦克风或 XR 硬件。**
-
-## 运行检查
-
-- 开发服务 `npm run dev` 已实际启动，`/api/health` 与原研究页面返回 200。
-- 构建完成后启动生产模式，检查首页、构建资产、配置、研究网页和 24 秒样片的 HTTP 响应。
-- 视频 Range `bytes=0-255` 实测返回 206 与 256 字节；同一行为也由集成测试覆盖。
-- 测试片为脚本生成的原创合成素材，24 秒，文件约 40 kB；没有用外部影视内容代替可交付素材。
-
-## 尚未验证
-
-| 项目 | 当前限制与下一步 |
+| 路径 | 结果 |
 |---|---|
-| 浏览器视觉、布局与操作 | 本次云浏览器无法连接代码运行容器：localhost 拒绝连接，容器预览地址被客户端阻止；没有宣称完成截图或视觉 QA |
-| 双浏览器音视频 | 需要在可达服务上实际打开两端，验证权限、双端开麦、同时协商、关闭与恢复 |
-| 公网、TURN、不同运营商 | 没有部署或跨网实测，默认 ICE 配置为空 |
-| WebXR | 只有能力适配代码；没有实体头显或真实房间测试 |
-| 手柄和触觉腕带 | 没有实体硬件测量；腕带驱动未实现 |
-| Docker | 提供配置，但本次未构建容器 |
-| 真实性能与用户效果 | 没有动作到画面、端到端触觉延迟、临场感或眩晕结论 |
+| `/` | 200，入口引用当前哈希 JS/CSS |
+| `/assets/index-gmzLQwoT.js` | 200，776,631 字节 |
+| `/assets/index-D58tP9_q.css` | 200，21,853 字节 |
+| `/api/health` | 200 |
+| `/api/config` | 200，模型上限 20 MiB |
+| `/research/` | 200 |
+| `/research/rove-overview.html` | 200，117,525 字节 |
+| `/media/rove-sync.webm`，Range `bytes=0-255` | 206，256 字节 |
+| `/api/spaces/:assetId`，没有当前会话凭据 | 401 |
 
-## GitHub 交付状态
+此 HTTP 检查没有执行页面 JavaScript、申请摄像头、播放远端画面或渲染 3D。
 
-完整上游历史和 v0.1 开发代码已导入独立仓库 [venividici/Rove](https://github.com/venividici/Rove) 的 `main` 分支。原始资料的来源为 [Angelina-G/rove-site](https://github.com/Angelina-G/rove-site)。
+## 尚未完成的实测
 
-- 导入合并提交：[7f3c4d47ee2bea102fe3eeb7f58b9b0d2fcad8ac](https://github.com/venividici/Rove/commit/7f3c4d47ee2bea102fe3eeb7f58b9b0d2fcad8ac)。
-- 原始提交 `d0b026570fdaefb73a339d27bf2455073fb93c5a`、开发提交 `2228db5fa69b3ce46e43352df32423da19a94567` 及文档提交 `a6225c2ee82f6d9e8a60e565748c50b4ffab13f4` 均保持原 SHA，并已核验为目标主分支的祖先。
-- 已从目标仓库重新执行 `git fetch`，核验原始 64 个文件的 Git 对象与源仓库完全一致；应用、测试、配置和开发文档与本地导入版本一致。
-- 一次性迁移流程已成功完成：[运行记录](https://github.com/venividici/Rove/actions/runs/39395680140)。临时迁移工作流和传输文件已从当前文件树清理，正常自动检查工作流继续保留。
+| 项目 | 当前证据边界 |
+|---|---|
+| 双浏览器完整旅程 | 当前执行环境没有可访问本地应用的浏览器验收通道；未完成真实页面的双端操作或截图验收 |
+| 摄像头、麦克风与屏幕双路传输 | 生命周期与信令已测试；未观察真实双方持续变化的图像和声音 |
+| HRTF 听感 | API 路由和降级已测试；未用耳机测方向、距离和舒适度 |
+| WebGL 与模型材质显示 | 真实 GLTFLoader 解析通过；未验收浏览器 GPU、贴图外观、布局或帧率 |
+| AR/VR、手动对齐和 reset | 输入与恢复代码已实现，数学已测；无实体头显结果或配准误差报告 |
+| 公网 HTTPS / TURN / 运营商差异 | 未部署或跨网实测；默认 ICE 配置为空 |
+| 手柄与触觉腕带 | 模拟 Gamepad 生命周期通过；真实硬件未测，腕带驱动未实现 |
+| Docker | 提供配置，本轮未构建镜像 |
+| 空间扫描、人体重建、持久锚点 | 未实现；GLB 为用户事先准备的静态模型 |
 
-## GitHub 自动检查
+下一次真实验收按 [ACCEPTANCE.md](ACCEPTANCE.md) 执行，分别记录同机、双设备、跨网络与头显结果。
 
-仓库启用 [Rove checks](https://github.com/venividici/Rove/actions/workflows/check.yml)，每次推送和 Pull Request 自动执行依赖安装、类型检查、24 项测试与生产构建。自动检查使用 Node.js 22，运行 `npm ci --ignore-scripts` 和 `npm run check`。
+## 来源保留与 GitHub
 
-上面的验证表记录本地实际执行结果；远端每次提交的状态和完整日志以对应的 [GitHub Actions 运行记录](https://github.com/venividici/Rove/actions) 为准。CI 不替代本记录中列明的浏览器、跨网络和实体设备实测。
+原始基线为 [Angelina-G/rove-site](https://github.com/Angelina-G/rove-site) 的 `d0b026570fdaefb73a339d27bf2455073fb93c5a`。原始 4 个 HTML、59 个 PDF、1 张 PNG 共 64 个文件在原路径保留。本轮以 `git ls-tree` 读取原 blob，再逐项计算工作区 `git hash-object`，结果全部相同。
+
+v0.1 已通过独立仓库导入保留完整上游历史；导入合并为 [7f3c4d47ee2bea102fe3eeb7f58b9b0d2fcad8ac](https://github.com/venividici/Rove/commit/7f3c4d47ee2bea102fe3eeb7f58b9b0d2fcad8ac)。本轮在原主分支 `e4b2f37f06efc029e5aebe08aeed2a92abb0f5aa` 之后继续开发，不创建 Fork、不重写来源历史。
+
+仓库 [Rove checks](https://github.com/venividici/Rove/actions/workflows/check.yml) 对每次 push/PR 使用 Node.js 22，运行 `npm ci --ignore-scripts` 和 `npm run check`。本记录中的检查表是本地实际结果；远端每次提交的成功/失败及 SHA 以对应 [Actions 记录](https://github.com/venividici/Rove/actions) 为准。CI 不替代上表中尚未完成的体验验收。
