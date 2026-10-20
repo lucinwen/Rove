@@ -1,0 +1,52 @@
+name: Import Rove repository once
+
+on:
+  create:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rove-repository-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.repository == 'venividici/Rove' && github.event.ref_type == 'branch' && github.event.ref == 'migration/rove-import'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the destination repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Import the verified source and development history
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'venividici/Rove'
+          test "$GITHUB_REF" = 'refs/heads/migration/rove-import'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          rove_bundle="$RUNNER_TEMP/rove-implementation.bundle"
+          base64 --decode .github/import/rove-implementation.bundle.b64 > "$rove_bundle"
+          printf '%s  %s\n' '58459776f1d03ff86eb45ac79ea91b46d1ef8cbe0841cb5ce5f5dd7481727d52' "$rove_bundle" | sha256sum --check --strict
+          git fetch --no-tags https://github.com/Angelina-G/rove-site.git d0b026570fdaefb73a339d27bf2455073fb93c5a
+          test "$(git rev-parse FETCH_HEAD)" = 'd0b026570fdaefb73a339d27bf2455073fb93c5a'
+          git bundle verify "$rove_bundle"
+          test "$(git bundle list-heads "$rove_bundle" refs/heads/feat/copresence-mvp | cut -d' ' -f1)" = 'a6225c2ee82f6d9e8a60e565748c50b4ffab13f4'
+          git fetch --no-tags "$rove_bundle" refs/heads/feat/copresence-mvp:refs/remotes/rove-import/development
+          test "$(git rev-parse refs/remotes/rove-import/development)" = 'a6225c2ee82f6d9e8a60e565748c50b4ffab13f4'
+          test "$(git rev-parse refs/remotes/rove-import/development^{tree})" = '3eea2506223c61530a4c73b3f9c50ac19d0f0ce2'
+          git merge-base --is-ancestor d0b026570fdaefb73a339d27bf2455073fb93c5a a6225c2ee82f6d9e8a60e565748c50b4ffab13f4
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-ff --allow-unrelated-histories a6225c2ee82f6d9e8a60e565748c50b4ffab13f4 -m 'chore: import Rove source history and copresence prototype'
+          git merge-base --is-ancestor d0b026570fdaefb73a339d27bf2455073fb93c5a HEAD
+          git merge-base --is-ancestor a6225c2ee82f6d9e8a60e565748c50b4ffab13f4 HEAD
+          git diff --quiet a6225c2ee82f6d9e8a60e565748c50b4ffab13f4 HEAD -- . ':!.github/workflows/import-rove.yml' ':!.github/import/rove-implementation.bundle.b64'
+          git push origin HEAD:refs/heads/main
+          git push --force-with-lease="refs/heads/migration/rove-import:$GITHUB_SHA" origin :refs/heads/migration/rove-import
