@@ -1,0 +1,26 @@
+name: G1 offline planning checks (not Unreal or hardware)
+on:
+  push:
+    paths:
+      - "docs/research/**"
+      - "experiments/copresence-v1/**"
+      - ".github/workflows/g1-offline-checks.yml"
+  pull_request:
+    paths:
+      - "docs/research/**"
+      - "experiments/copresence-v1/**"
+      - ".github/workflows/g1-offline-checks.yml"
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax check
+        run: python -m compileall -q experiments/copresence-v1
+      - name: Offline tests only
+        run: python -m unittest discover -s experiments/copresence-v1/tests -v
