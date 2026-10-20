@@ -87,11 +87,11 @@ npm run check
 | WebXR | 只有能力适配代码；没有实体头显或真实房间测试 |
 | 手柄和触觉腕带 | 没有实体硬件测量；腕带驱动未实现 |
 | Docker | 提供配置，但本次未构建容器 |
-| GitHub Actions | 已提供检查配置，本次尚未在用户仓库运行 |
+| GitHub Actions | 已提供检查配置；远端运行状态待上传后核验，本记录尚未确认 Actions 通过 |
 | 真实性能与用户效果 | 没有动作到画面、端到端触觉延迟、临场感或眩晕结论 |
 
 ## GitHub 交付状态
 
-本地开发已基于原始历史保存在 `feat/copresence-mvp`。连接的 GitHub 账号确认是 `venividici`；本次插件提供了读仓库和文件／分支操作，但没有创建仓库或 Fork 操作。网页登录未完成，因此本记录写入时 `venividici/rove-site` 尚未创建、代码尚未推送。
+本地开发已基于原始历史保存在 `feat/copresence-mvp`。用户已指定自己的独立目标仓库 [venividici/Rove](https://github.com/venividici/Rove)，要求直接上传本地克隆和已开发代码，不创建 Fork。原始资料与历史的来源仍是 [Angelina-G/rove-site](https://github.com/Angelina-G/rove-site)。
 
-下一步是在 `venividici` 下创建源仓库的 Fork，然后将已完成的开发提交推送到该仓库。不能把本地提交状态表述成已上传 GitHub。
+本记录更新时，上传与远端内容核验正在进行。尚未确认目标仓库已完整收到代码，也未确认 GitHub Actions 通过。上传完成后，需要以目标仓库的实际分支、提交、文件与工作流结果更新最终状态；本地提交和本地测试通过不能替代这些远端证据。
